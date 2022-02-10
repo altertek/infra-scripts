@@ -6,65 +6,67 @@
 _RED='\033[0;31m'
 _NC='\033[0m'
 
-function _show_usage() {
+_show_usage() {
   echo "$0 --container [container] --name [db_name] --user [db_user]"
 }
 
-function _show_error() {
+_show_error() {
   echo -e "${_RED}${1}${_NC}" 1>&2
 }
 
-function _debug() {
-  if [[ "$DEBUG" -eq 1 ]]; then
+_debug() {
+  # shellcheck disable=SC2154
+  if [[ "${DEBUG}" -eq 1 ]]; then
     echo "$1"
   fi
 }
 
-function _backup() {
-  if [[ -z "$_DB_NAME" ]]; then
+_backup() {
+  if [[ -z "${_DB_NAME}" ]]; then
     echo "No database specified, fetching local config file"
     # shellcheck disable=SC1091
     if source .env 2>/dev/null; then
-      _debug "from env file: $POSTGRES_DB"
-      _debug "from env file: $POSTGRES_USER"
+      # shellcheck disable=SC2154
+      _debug "from env file: ${POSTGRES_DB}"
+      # shellcheck disable=SC2154
+      _debug "from env file: ${POSTGRES_USER}"
     fi
-    if [[ -z "$POSTGRES_DB" || -z "$POSTGRES_USER" ]]; then
+    if [[ -z "${POSTGRES_DB}" || -z "${POSTGRES_USER}" ]]; then
       _show_error "Cannot guess DB name or user"
       _show_usage
       exit 2
     fi
 
-    _DB_NAME=$POSTGRES_DB
-    _DB_USER=$POSTGRES_USER
+    _DB_NAME=${POSTGRES_DB}
+    _DB_USER=${POSTGRES_USER}
   fi
 
-  if [[ -z $_CONTAINER ]]; then
+  if [[ -z ${_CONTAINER} ]]; then
 
     echo "No container specified, guessing container name"
     _CONTAINER=$(docker ps --format "{{.Names}}" | grep postgres)
 
-    if [[ -z "$_CONTAINER" ]]; then
+    if [[ -z "${_CONTAINER}" ]]; then
       _show_error "Cannot find a matching container"
       _show_usage
       exit 1
     fi
-    if [[ "$_CONTAINER" == *$'\n'* ]]; then
+    if [[ "${_CONTAINER}" == *$'\n'* ]]; then
       _show_error "Found multiple Postgres containers:"
-      _show_error "$_CONTAINER"
+      _show_error "${_CONTAINER}"
       _show_error "Please choose one"
-      _show_usage
       exit 1
     fi
   fi
 
-  _BACKUP_NAME="$_CONTAINER-$(date +'%Y%m%d').backup"
+  _BACKUP_NAME="${_CONTAINER}-$(date +'%Y%m%d').backup"
 
-  echo -e "Container:\t$_CONTAINER"
-  echo -e "Database name:\t$_DB_NAME"
-  echo -e "Databaser user:\t$_DB_USER"
-  echo -e "Backup name:\t$_BACKUP_NAME"
+  echo -e "Container:\t${_CONTAINER}"
+  echo -e "Database name:\t${_DB_NAME}"
+  echo -e "Databaser user:\t${_DB_USER}"
+  echo -e "Backup name:\t${_BACKUP_NAME}"
 
-  if [[ $_CONFIRM != 1 ]]; then
+  if [[ "${_CONFIRM}" != 1 ]]; then
     echo -n "Is this ok?? [y/N]: "
     read -r continue
     if [[ ${continue} != "y" ]]; then
@@ -72,12 +74,12 @@ function _backup() {
     fi
   fi
 
-  docker exec "$_CONTAINER" pg_dump -U "$_DB_USER" "$_DB_NAME" >"$_BACKUP_NAME"
+  docker exec "${_CONTAINER}" pg_dump -U "${_DB_USER}" "${_DB_NAME}" >"${_BACKUP_NAME}"
 }
 
 while [[ $# -gt 0 ]]; do
   key="$1"
-  case $key in
+  case ${key} in
   -n | --name)
     _DB_NAME="$2"
     shift
@@ -104,7 +106,7 @@ while [[ $# -gt 0 ]]; do
   shift # past argument or value
 done
 
-if [[ -z $key ]]; then
+if [[ -z ${key} ]]; then
   _show_usage && exit 0
 fi
 _backup
