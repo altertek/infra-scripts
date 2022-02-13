@@ -74,7 +74,7 @@ _backup() {
     fi
   fi
 
-  docker exec "${_CONTAINER}" pg_dump -U "${_DB_USER}" "${_DB_NAME}" >"${_BACKUP_NAME}"
+  docker exec "${_CONTAINER}" pg_dump -U "${_DB_USER}" -Fc "${_DB_NAME}" >"${_BACKUP_NAME}"
 }
 
 while [[ $# -gt 0 ]]; do
