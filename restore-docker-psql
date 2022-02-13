@@ -1,0 +1,125 @@
+#!/bin/bash
+
+# Script to restore postgresql containers
+# When no args are specified, it will try to guess the settings
+
+_RED='\033[0;31m'
+_ORANGE='\033[0;33m'
+_BOLD_BLUE='\033[1;34m'
+_NC='\033[0m'
+
+_show_usage() {
+  echo "$0 <backup path> --container [container] --name [db_name] --user [db_user]"
+}
+
+_show_error() {
+  echo -e "${_RED}${1}${_NC}" 1>&2
+}
+
+_show_title() {
+  echo -e "${_BOLD_BLUE}${1}${_NC}" 1>&2
+}
+
+_debug() {
+  # shellcheck disable=SC2154
+  if [[ "${DEBUG}" -eq 1 ]]; then
+    echo -e "${_ORANGE}${1}${_NC}" 1>&2
+  fi
+}
+
+_restore() {
+  if [[ -z "${_DB_NAME}" ]]; then
+    _debug "No database specified, fetching local config file"
+    # shellcheck disable=SC1091
+    if source .env 2>/dev/null; then
+      # shellcheck disable=SC2154
+      _debug "from env file: ${POSTGRES_DB}"
+      # shellcheck disable=SC2154
+      _debug "from env file: ${POSTGRES_USER}"
+    fi
+    if [[ -z "${POSTGRES_DB}" || -z "${POSTGRES_USER}" ]]; then
+      _show_error "Cannot guess DB name or user"
+      _show_usage
+      exit 2
+    fi
+
+    _DB_NAME=${POSTGRES_DB}
+    _DB_USER=${POSTGRES_USER}
+  fi
+
+  if [[ -z ${_CONTAINER} ]]; then
+
+    _debug "No container specified, guessing container name"
+    _CONTAINER=$(docker ps --format "{{.Names}}" | grep postgres)
+
+    if [[ -z "${_CONTAINER}" ]]; then
+      _show_error "Cannot find a matching container"
+      _show_usage
+      exit 1
+    fi
+    if [[ "${_CONTAINER}" == *$'\n'* ]]; then
+      _show_error "Found multiple Postgres containers:"
+      _show_error "${_CONTAINER}"
+      _show_error "Please choose one"
+      exit 1
+    fi
+  fi
+
+  _show_title "Postgres database restoration"
+  echo -e "Container:\t${_CONTAINER}"
+  echo -e "Database name:\t${_DB_NAME}"
+  echo -e "Databaser user:\t${_DB_USER}"
+  echo -e "Backup path:\t${_BACKUP_PATH}"
+
+  if [[ "${_CONFIRM}" != 1 ]]; then
+    echo -n "Is this ok?? [y/N]: "
+    read -r continue
+    if [[ ${continue} != "y" ]]; then
+      echo "Opertion aborted" && exit 3
+    fi
+  fi
+
+  echo
+  docker exec --interactive "${_CONTAINER}" dropdb --if-exists --username "${_DB_USER}" "${_DB_NAME}"
+  docker exec --interactive "${_CONTAINER}" createdb --username "${_DB_USER}" --owner "${_DB_USER}" "${_DB_NAME}"
+  docker exec --interactive "${_CONTAINER}" pg_restore -U "${_DB_USER}" -d "${_DB_NAME}" --clean --if-exists <"${_BACKUP_PATH}"
+}
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case ${key} in
+  -b | --backup)
+    _BACKUP_PATH="$2"
+    shift
+    ;;
+  -n | --name)
+    _DB_NAME="$2"
+    shift
+    ;;
+  -u | --user)
+    _DB_USER="$2"
+    shift
+    ;;
+  -c | --container)
+    _CONTAINER="$2"
+    shift
+    ;;
+  -y)
+    _CONFIRM=1
+    ;;
+  -h | --help | help)
+    _show_usage && exit 0
+    ;;
+  *)
+    # unknown option, may be backup path
+    _BACKUP_PATH="$1"
+    ;;
+  esac
+  shift # past argument or value
+done
+
+if [[ -z ${_BACKUP_PATH} ]]; then
+  _show_error "Backup path is mandatory"
+  _show_usage && exit 0
+fi
+_restore
