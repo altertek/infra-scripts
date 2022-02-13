@@ -106,7 +106,4 @@ while [[ $# -gt 0 ]]; do
   shift # past argument or value
 done
 
-if [[ -z ${key} ]]; then
-  _show_usage && exit 0
-fi
 _backup
