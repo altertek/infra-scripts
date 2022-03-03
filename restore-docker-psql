@@ -50,7 +50,11 @@ _restore() {
   if [[ -z ${_CONTAINER} ]]; then
 
     _debug "No container specified, guessing container name"
-    _CONTAINER=$(docker ps --format "{{.Names}}" | grep postgres)
+    if command -v yq &>/dev/null; then
+      _CONTAINER=$(yq ".services[].container_name" <docker-compose.yml | grep "postgres" | tr -d \")
+    else
+      _CONTAINER=$(docker ps --format "{{.Names}}" | grep "postgres")
+    fi
 
     if [[ -z "${_CONTAINER}" ]]; then
       _show_error "Cannot find a matching container"
