@@ -1,6 +1,10 @@
 # Altertek infra-scripts
 Repository containing various scripts used on Altertek servers
 
+## Requirements (optional)
+apt install jq
+pip install yq
+
 ## backup-docker-psql
 In your docker-compose directory:
 ```
