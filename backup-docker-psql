@@ -52,7 +52,9 @@ _backup() {
     _debug "No container specified, guessing container name"
     if (command -v jq && command -v yq) &>/dev/null; then
       _CONTAINER=$(yq ".services[].container_name" <docker-compose.yml | grep "postgres" | tr -d \")
-    else
+    fi
+
+    if [[ -z "${_CONTAINER}" ]]; then
       _CONTAINER=$(docker ps --format "{{.Names}}" | grep "postgres")
     fi
 
