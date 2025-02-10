@@ -3,8 +3,7 @@ Repository containing various scripts used on Altertek servers
 
 ## Requirements (optional)
 ```
-apt install jq
-pip install yq
+apt install jq yq
 ```
 
 ## backup-docker-psql
